@@ -248,13 +248,23 @@ save.image("B:/Ongoing_Research/XGBOOST/MS2/xgboost2/data/simulated data.RData")
 
 ################################################################################
 
+load("B:/Ongoing_Research/XGBOOST/MS2/xgboost2/data/simulated data.RData")
+
+#Include only the first 170 items
+
+train <- train[,c(1:170,201:370,401)]
+
+describe(train)
+
+################################################################################
+set.seed(06152021)
 require(xgboost)
 require(pROC)
 
 # Add average response time and average response accuracy as features
 
-train$ave.rt <- rowMeans(train[,201:400])
-train$ave.r  <- rowMeans(train[,1:200])
+train$ave.rt <- rowMeans(train[,171:340])
+train$ave.r  <- rowMeans(train[,1:170])
 
 
 # Split the data into training and test (80-20 split)
@@ -266,8 +276,8 @@ df_test  <- train[loc,]
 
 # Create the xgb.DMatrix objects 
 
-dtrain <- xgb.DMatrix(data = data.matrix(df_train[,-401]), label=df_train[,401])
-dtest  <- xgb.DMatrix(data = data.matrix(df_test[,-401]),  label=df_test[,401])
+dtrain <- xgb.DMatrix(data = data.matrix(df_train[,-341]), label=df_train[,341])
+dtest  <- xgb.DMatrix(data = data.matrix(df_test[,-341]),  label=df_test[,341])
 
 # Fit the XGBoost model with the tuned parameters
 
@@ -278,15 +288,15 @@ watchlist <- list(train=dtrain, test=dtest)
 
 bst <- xgb.train(data              = dtrain,
                  nround            = 10000,
-                 eta               = .05,
+                 eta               = .01,
                  min_child_weight  = 1,
-                 max_depth         = 5,
+                 max_depth         = 10,
                  gamma             = 0,
                  max_delta_step    = 0,
-                 subsample         = 1,
-                 colsample_bytree  = 1,
+                 subsample         = 0.9,
+                 colsample_bytree  = 0.9,
                  lambda            = 0,
-                 alpha             = 0,
+                 alpha             = 1,
                  scale_pos_weight  = 1,
                  num_parallel_tree = 1,
                  nthread           = 15, 
@@ -317,13 +327,18 @@ table(df_test$target,df_test$prob>th[2])
 
 ################################################################################
 
-df_form1 <- d
-colnames(d) <- colnames(train[,1:400])
-df_form1$ave.rt <- rowMeans(df_form1[,201:400],na.rm=TRUE)
-df_form1$ave.r  <- rowMeans(df_form1[,1:200],na.rm=TRUE)
+df_form1 <- d[,c(1:170,201:370)]
 
+colnames(df_form1) <- colnames(train[,1:340])
 
-dform <- xgb.DMatrix(data = data.matrix(df_form1))   #, label=form1$Flagged)
+df_form1$ave.rt <- rowMeans(df_form1[,171:340],na.rm=TRUE)
+df_form1$ave.r  <- rowMeans(df_form1[,1:170],na.rm=TRUE)
+
+for(i in 1:ncol(df_form1)){
+  df_form1[is.na(df_form1[,i]),i] = mean(df_form1[,i],na.rm=TRUE)
+}
+
+dform <- xgb.DMatrix(data = data.matrix(df_form1))
 
 pred <- predict(bst,dform)
 
@@ -344,7 +359,7 @@ table(form1$Flagged,pred>th[1])
 table(form1$Flagged,pred>th[2])
 
 
-table(form1$Flagged,pred>0.95)
+table(form1$Flagged,pred>0.99999)
 
 
 
